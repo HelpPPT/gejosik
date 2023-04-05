@@ -21,57 +21,60 @@ class Gejosik:
             raise ValueError('인자는 0개 또는 konlpy tagger 1개 입니다.')
     
     def vocab(self, vocab: str):
-        vocab = vocab.removesuffix('.')
-        t_vocabs = self.tagger.pos(vocab)
-        # print(t_vocabs)
+        vocab = vocab.removesuffix('.') # . 제거
+        parsed_morphemes = self.tagger.pos(vocab)
         
-        idx = 0
-        for i in range(0, len(t_vocabs)):
-            (t_vocab, t_vocab_type) = t_vocabs[i]
-            if not (t_vocab_type.startswith('V') or t_vocab_type.startswith('N') or t_vocab_type.startswith('XR')):
+        meaningful_morpheme_idx = 0
+        for i in range(0, len(parsed_morphemes)):
+            (morpheme_word, morpheme_type) = parsed_morphemes[i]
+            if not (morpheme_type.startswith('V') or morpheme_type.startswith('N') or morpheme_type.startswith('XR')):
                 break
-            idx = i
+            meaningful_morpheme_idx = i
         
         hannanum_vocab = ''
 
-        (t_vocab, t_vocab_type) = t_vocabs[idx]
-        if t_vocab_type.startswith('V') :
-          if has_batchim(t_vocab):
+        (morpheme_word, morpheme_type) = parsed_morphemes[meaningful_morpheme_idx]
+        if morpheme_type.startswith('V') :
+          if has_batchim(morpheme_word):
             # 종성이 ㅂ 인가 확인
-            last_character = t_vocab[-1]
+            last_character = morpheme_word[-1]
             jong_sung_idx = (ord(last_character) - 0xAC00) % 28
             jong_sung = jong_sung_idx + 0x11A8 - 1
             if(jong_sung == 4536):
                 # 17 제거
-                hannanum_vocab = t_vocab[0: -1] + chr(ord(last_character) - 17) + '움'
+                hannanum_vocab = morpheme_word[0: -1] + chr(ord(last_character) - 17) + '움'
             else:
-                hannanum_vocab = t_vocab + '음'
+                hannanum_vocab = morpheme_word + '음'
           else:
-            last_letter = t_vocab[-1]
+            last_letter = morpheme_word[-1]
             batchim_last_letter = chr(ord(last_letter) + 16) # 16 더해줄 경우 ㅁ 받침 추가
-            hannanum_vocab = t_vocab[0: -1] + batchim_last_letter
-        elif t_vocab_type.startswith('N') or t_vocab_type.startswith('XR'):
-            hannanum_vocab = t_vocab
+            hannanum_vocab = morpheme_word[0: -1] + batchim_last_letter
+        elif morpheme_type.startswith('N') or morpheme_type.startswith('XR'):
+            hannanum_vocab = morpheme_word
         
-        # print(t_vocabs)
+        # print(parsed_morphemes)
         n_t_vocabs = []
-        for item in t_vocabs:
+        for item in parsed_morphemes:
             word, tag = item
             korean_tag = data[tag]
             n_t_vocabs.append((word, tag, korean_tag))
 
         ans = ""
-        for i in range(0, idx):
-            ans += t_vocabs[i][0]
+        for i in range(0, meaningful_morpheme_idx):
+            ans += parsed_morphemes[i][0]
         ans += hannanum_vocab
 
         return ans
 
     def sentence(self, sentence):
-        idx = sentence.rfind(' ')
-        if idx == -1:
+        space_leftside_of_last_word_idx = sentence.rfind(' ')
+
+        if space_leftside_of_last_word_idx == -1:
             return self.vocab(sentence)
-        temp_sentence = sentence[0:idx + 1]
-        last_word = sentence[idx + 1: ]
-        gejosik_word = self.vocab(last_word)
-        return temp_sentence + gejosik_word
+        else:
+            sentence_wo_last_vocab = sentence[0:space_leftside_of_last_word_idx + 1]
+            last_vocab = sentence[space_leftside_of_last_word_idx + 1:]
+
+            gejosik_vocab = self.vocab(last_vocab)
+
+            return sentence_wo_last_vocab + gejosik_vocab
