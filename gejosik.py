@@ -23,58 +23,87 @@ class Gejosik:
     def vocab(self, vocab: str):
         vocab = vocab.removesuffix('.') # . 제거
         parsed_morphemes = self.tagger.pos(vocab)
-        
-        meaningful_morpheme_idx = 0
-        for i in range(0, len(parsed_morphemes)):
-            (morpheme_word, morpheme_type) = parsed_morphemes[i]
-            if not (morpheme_type.startswith('V') or morpheme_type.startswith('N') or morpheme_type.startswith('XR')):
-                break
-            meaningful_morpheme_idx = i
-        
-        hannanum_vocab = ''
 
-        (morpheme_word, morpheme_type) = parsed_morphemes[meaningful_morpheme_idx]
-        if morpheme_type.startswith('V') :
-          if has_batchim(morpheme_word):
-            # 종성이 ㅂ 인가 확인
-            last_character = morpheme_word[-1]
-            jong_sung_idx = (ord(last_character) - 0xAC00) % 28
-            jong_sung = jong_sung_idx + 0x11A8 - 1
-            if(jong_sung == 4536):
-                # 17 제거
-                hannanum_vocab = morpheme_word[0: -1] + chr(ord(last_character) - 17) + '움'
-            else:
-                hannanum_vocab = morpheme_word + '음'
-          else:
-            last_letter = morpheme_word[-1]
-            batchim_last_letter = chr(ord(last_letter) + 16) # 16 더해줄 경우 ㅁ 받침 추가
-            hannanum_vocab = morpheme_word[0: -1] + batchim_last_letter
-        elif morpheme_type.startswith('N') or morpheme_type.startswith('XR'):
-            hannanum_vocab = morpheme_word
-        
-        # print(parsed_morphemes)
-        n_t_vocabs = []
+        parsed_morphemes_tagged = []
         for item in parsed_morphemes:
             word, tag = item
             korean_tag = data[tag]
-            n_t_vocabs.append((word, tag, korean_tag))
+            parsed_morphemes_tagged.append((word, tag, korean_tag))
+        
+        # 의미없는 형태소 추출
+        meaningless_morpheme_idx = -1
+        for i in range(0, len(parsed_morphemes)):
+            (morpheme_word, morpheme_type) = parsed_morphemes[i]
+            if morpheme_type.startswith('V') or morpheme_type.startswith('N') or morpheme_type.startswith('XR'):
+                break
+            else:
+                meaningless_morpheme_idx = i
 
-        ans = ""
+        # 의미있는 형태소 추출
+        meaningful_morpheme_idx = -1
+        for i in range(meaningless_morpheme_idx + 1, len(parsed_morphemes)):
+            (morpheme_word, morpheme_type) = parsed_morphemes[i]
+            if not (morpheme_type.startswith('V') or morpheme_type.startswith('N') or morpheme_type.startswith('XR')):
+                break
+            else:
+                meaningful_morpheme_idx = i
+        
+        gejosik_morpheme = ''
+
+        (morpheme_word, morpheme_type) = parsed_morphemes[meaningful_morpheme_idx]
+        if morpheme_type.startswith('V'):
+            if has_batchim(morpheme_word):
+                # 종성이 ㅂ 인가 확인
+                last_character = morpheme_word[-1]
+                jong_sung_idx = (ord(last_character) - 0xAC00) % 28
+                jong_sung = jong_sung_idx + 0x11A8 - 1
+                if(jong_sung == 4536):
+                    # 17 제거
+                    gejosik_morpheme = morpheme_word[0: -1] + chr(ord(last_character) - 17) + '움'
+                else:
+                    gejosik_morpheme = morpheme_word + '음'
+            else:
+                last_letter = morpheme_word[-1]
+                batchim_last_letter = chr(ord(last_letter) + 16) # 16 더해줄 경우 ㅁ 받침 추가
+                gejosik_morpheme = morpheme_word[0: -1] + batchim_last_letter
+        elif morpheme_word == '하다':
+            gejosik_morpheme = '함'
+        elif morpheme_type.startswith('N') or morpheme_type.startswith('XR'):
+            gejosik_morpheme = morpheme_word
+
+        gejosik_vocab = ""
         for i in range(0, meaningful_morpheme_idx):
-            ans += parsed_morphemes[i][0]
-        ans += hannanum_vocab
+            gejosik_vocab += parsed_morphemes[i][0]
+        gejosik_vocab += gejosik_morpheme
 
-        return ans
+        vocab_result = {
+            'selected_vocab': vocab,
+            'gejosik_vocab': gejosik_vocab,
+            'morphemes': parsed_morphemes_tagged,
+            'meaningless_morphemes': parsed_morphemes_tagged[0: meaningless_morpheme_idx + 1],
+            'meaningful_morphemes': parsed_morphemes_tagged[meaningless_morpheme_idx + 1 : meaningful_morpheme_idx + 1],
+        }
+
+        return vocab_result
 
     def sentence(self, sentence):
         space_leftside_of_last_word_idx = sentence.rfind(' ')
 
+        sentence_result = {'original_sentence': sentence}
+        # 한 단어로만 이루어진 문장이 들어온 경우
         if space_leftside_of_last_word_idx == -1:
-            return self.vocab(sentence)
+            vocab_result = self.vocab(sentence)
+
+            sentence_result.update(vocab_result)
+            sentence_result['gejosik_sentence'] = vocab_result['gejosik_vocab']
+        # 여러 단어로 이루어진 문장이 들어온 경우
         else:
             sentence_wo_last_vocab = sentence[0:space_leftside_of_last_word_idx + 1]
+            # 마지막 단어만 추출해서 처리
             last_vocab = sentence[space_leftside_of_last_word_idx + 1:]
+            vocab_result = self.vocab(last_vocab)
 
-            gejosik_vocab = self.vocab(last_vocab)
+            sentence_result.update(vocab_result)
+            sentence_result['gejosik_sentence'] = sentence_wo_last_vocab + vocab_result['gejosik_vocab']
 
-            return sentence_wo_last_vocab + gejosik_vocab
+        return sentence_result
