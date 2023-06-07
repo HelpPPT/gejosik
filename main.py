@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,7 +8,7 @@ app = FastAPI()
 g = Gejosik()
 
 class Item(BaseModel):
-    sentence: str
+    sentences: List[str]
 
 app.add_middleware(
     CORSMiddleware,
@@ -19,8 +19,9 @@ app.add_middleware(
 )
 
 @app.post("/gejosik/")
-def parse_item(item: Item):
-    if item.sentence == '':
-        return '한 개 이상의 문자가 있어야 합니다.'
-    t = str(g.sentence(item.sentence))
-    return t
+def gejosik(item: Item):
+    parsed_sentence = {}
+    for sentence in item.sentences:
+        t = g.sentence(sentence)
+        parsed_sentence[t['original_sentence']] = t
+    return parsed_sentence
