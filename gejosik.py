@@ -86,12 +86,19 @@ class Gejosik:
             gejosik_vocab += parsed_morphemes[i][0]
         gejosik_vocab += gejosik_morpheme
 
+        meaningful_morphemes = parsed_morphemes_tagged[meaningless_morpheme_idx + 1 : meaningful_morpheme_idx + 1]
+        to_change = False
+        if len(meaningful_morphemes) >= 1:
+            if meaningful_morphemes[0][1].startswith("V") == True:
+                to_change = True
+
         vocab_result = {
             'selected_vocab': vocab,
             'gejosik_vocab': gejosik_vocab,
             'morphemes': parsed_morphemes_tagged,
             'meaningless_morphemes': parsed_morphemes_tagged[0: meaningless_morpheme_idx + 1],
-            'meaningful_morphemes': parsed_morphemes_tagged[meaningless_morpheme_idx + 1 : meaningful_morpheme_idx + 1],
+            'meaningful_morphemes': meaningful_morphemes,
+            'to_change': to_change,
         }
 
         return vocab_result
