@@ -50,6 +50,16 @@ class Gejosik:
         
         gejosik_morpheme = ''
 
+        if meaningful_morpheme_idx == -1:
+            vocab_result = {
+            'selected_vocab': "",
+            'gejosik_vocab': "",
+            'morphemes': "",
+            'meaningless_morphemes': "",
+            'meaningful_morphemes': "",
+            }
+            return vocab_result
+
         (morpheme_word, morpheme_type) = parsed_morphemes[meaningful_morpheme_idx]
         if morpheme_type.startswith('V'):
             if has_batchim(morpheme_word):
